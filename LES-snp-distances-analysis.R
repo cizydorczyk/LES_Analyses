@@ -3,6 +3,7 @@ library(ggpubr)
 library(patchwork)
 library(ape)
 library(tidystats)
+library(vegan)
 
 ################################################################################
 # Process & format data
@@ -262,8 +263,8 @@ plot3 = ggdensity(
   legend = "none"
 ) +
   xlab("SNP Distance") +
-  ylab("Density") +
-  scale_x_continuous(breaks = get_breaks(n = 12))
+  ylab("Density") #+
+  #scale_x_continuous(breaks = get_breaks(n = 12))
 
 # Put plots together:
 finalPlot = (as_ggplot(plot2aLegend)) / (plot3 + inset_element(
@@ -642,8 +643,8 @@ plot3 = ggdensity(
   legend = "none"
 ) +
   xlab("SNP Distance") +
-  ylab("Density") +
-  scale_x_continuous(breaks = get_breaks(n = 12))
+  ylab("Density") #+
+  #scale_x_continuous(breaks = get_breaks(n = 12))
 
 # Put plots together:
 finalPlotP = (as_ggplot(plot2aLegend)) / (plot3 + inset_element(
@@ -809,11 +810,16 @@ kwTestP
 ################################################################################
 # PCoA on SNPs (fails on p-distances)
 ################################################################################
-
+# No Canada2
 snpData2 = snpData[-(1:11), -(1:11)]
 
-pcoa1 = pcoa(snpData2, correction = "cailliez")
+# permANOVA:
+isolateListDf = data.frame(Isolate=c(canadaList1, ukList), Origin=c(rep("Canada", length(canadaList1)), rep("UK", length(ukList))))
+permanovaRes = adonis2(snpData2 ~ factor(Origin), data = isolateListDf, permutations = 10000)
+permanovaRes
 
+# Plots:
+pcoa1 = pcoa(snpData2, correction = "cailliez")
 pcoa1Df = as.data.frame(pcoa1$vectors)
 pcoa1Df$Isolate = rownames(pcoa1Df)
 pcoa1Df$Origin = c(rep("Canada", length(canadaList1)), rep("UK", length(ukList)))
@@ -826,7 +832,22 @@ pcoaPlot1 = ggscatter(
   palette = c("red", "blue"),
   legend.title = "Country of Origin:"
 ) +
-  font("legend.text", size = 12)
+  font("legend.text", size = 12) +
+  stat_ellipse(
+    data = pcoa1Df,
+    aes(
+      x = Axis.1,
+      y = Axis.2,
+      color = Origin,
+      fill = Origin
+    ),
+    geom = "polygon",
+    alpha = 0.2
+  ) +
+  annotate("text",
+           x = -200,
+           y = 175,
+           label = "permANOVA\np<0.0001")
 
 pcoaPlot2 = ggscatter(
   data = pcoa1Df,
@@ -834,7 +855,18 @@ pcoaPlot2 = ggscatter(
   y = "Axis.3",
   color = "Origin",
   palette = c("red", "blue")
-)
+) +
+  stat_ellipse(
+    data = pcoa1Df,
+    aes(
+      x = Axis.2,
+      y = Axis.3,
+      color = Origin,
+      fill = Origin
+    ),
+    geom = "polygon",
+    alpha = 0.2
+  )
 
 pcoaPlot3 = ggscatter(
   data = pcoa1Df,
@@ -842,15 +874,26 @@ pcoaPlot3 = ggscatter(
   y = "Axis.4",
   color = "Origin",
   palette = c("red", "blue")
-)
+) +
+  stat_ellipse(
+    data = pcoa1Df,
+    aes(
+      x = Axis.3,
+      y = Axis.4,
+      color = Origin,
+      fill = Origin
+    ),
+    geom = "polygon",
+    alpha = 0.2
+  )
 
-pcoaPlot4 = ggscatter(
-  data = pcoa1Df,
-  x = "Axis.4",
-  y = "Axis.5",
-  color = "Origin",
-  palette = c("red", "blue")
-)
+# pcoaPlot4 = ggscatter(
+#   data = pcoa1Df,
+#   x = "Axis.4",
+#   y = "Axis.5",
+#   color = "Origin",
+#   palette = c("red", "blue")
+# )
 
 
 screeData = data.frame(
@@ -894,13 +937,28 @@ pcoaPlots
 ################################################################################
 # Final plots
 ################################################################################
-finalSNPsPlots = ggarrange(finalPlot, finalViolinPlot, nrow=1, labels="AUTO")
-finalPdistPlots = ggarrange(finalPlotP, finalViolinPlotP, nrow=1, labels="AUTO")
+# SNPs distributions plots svg & pdf
+ggsave("/home/conrad/les_complete/snp-distances-analysis/snp-distances-dist.svg", finalPlot, device="svg", height=180, width=180, units="mm", dpi=300)
+ggsave("/home/conrad/les_complete/snp-distances-analysis/snp-distances-dist.pdf", finalPlot, device="pdf", height=180, width=180, units="mm", dpi=300)
 
-ggsave("/home/conrad/les_complete/snp-distances-analysis/final-plots-SNPs.pdf", finalSNPsPlots, device="pdf", height=180, width=180, units="mm", dpi=300)
-ggsave("/home/conrad/les_complete/snp-distances-analysis/final-plots-Pdists.pdf", finalPdistPlots, device="pdf", height=180, width=180, units="mm", dpi=300)
+# SNPs violin plots svg & pdf
+ggsave("/home/conrad/les_complete/snp-distances-analysis/snp-distances-violin.svg", finalViolinPlot, device="svg", height=180, width=180, units="mm", dpi=300)
+ggsave("/home/conrad/les_complete/snp-distances-analysis/snp-distances-violin.pdf", finalViolinPlot, device="pdf", height=180, width=180, units="mm", dpi=300)
 
+# SNPs PCoA plots svg & pdf
+ggsave("/home/conrad/les_complete/snp-distances-analysis/snp-distances-pcoa.svg", pcoaPlots, device="svg", height=180, width=180, units="mm", dpi=300)
+ggsave("/home/conrad/les_complete/snp-distances-analysis/snp-distances-pcoa.pdf", pcoaPlots, device="pdf", height=180, width=180, units="mm", dpi=300)
+
+# P distances distributions plots svg & pdf
+ggsave("/home/conrad/les_complete/snp-distances-analysis/p-distances-dist.svg", finalPlotP, device="svg", height=180, width=180, units="mm", dpi=300)
+ggsave("/home/conrad/les_complete/snp-distances-analysis/p-distances-dist.pdf", finalPlotP, device="pdf", height=180, width=180, units="mm", dpi=300)
+
+# P distances violin plots svg & pdf
+ggsave("/home/conrad/les_complete/snp-distances-analysis/p-distances-violin.svg", finalViolinPlotP, device="svg", height=180, width=180, units="mm", dpi=300)
+ggsave("/home/conrad/les_complete/snp-distances-analysis/p-distances-violin.pdf", finalViolinPlotP, device="pdf", height=180, width=180, units="mm", dpi=300)
+
+# Stats
 outStats = list()
 outStats = add_stats(outStats, wilcoxTest)
 outStats = add_stats(outStats, wilcoxTestP)
-write_stats(outStats, "/home/conrad/les_complete/snp-distances-analysis/wilcox-stats.json")
+write_stats(outStats, "/home/conrad/les_complete/snp-distances-analysis/snps-pdistances-wilcox-stats.json")
